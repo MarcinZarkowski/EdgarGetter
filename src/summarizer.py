@@ -30,50 +30,34 @@ def split_sentences(text):
     if not text:
         return []
     
-    # Regex explanation:
-    # (?<!\w\.\w.)    : Negative lookbehind for abbreviations like U.S.
-    # (?<![A-Z][a-z]\.) : Negative lookbehind for abbreviations like Dr.
-    # (?<=\.|\?|\!)     : Positive lookbehind for sentence enders
-    # \s                : Whitespace splitter
+    # Negative lookbehind for abbreviations like U.S. or Dr.
     pattern = r'(?<!\w\.\w.)(?<![A-Z][a-z]\.)(?<=\.|\?|\!)\s'
     sentences = re.split(pattern, text)
     return [s.strip() for s in sentences if s.strip()]
 
 def tokenize(text):
-    """
-    Simple tokenizer: lowercase, remove non-alphanumeric, remove stop words.
-    """
     text = text.lower()
-    # customized stop words
     stop_words = {
         "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "with",
         "is", "are", "was", "were", "of", "it", "that", "this", "by", "from", "be",
         "as", "have", "has", "had", "not", "which", "will", "can", "would", "could"
     }
     
-    # split by non-alphanumeric
     tokens = re.split(r'[^a-z0-9]+', text)
     return [t for t in tokens if t and t not in stop_words]
 
 def compute_tf_idf(sentences):
-    """
-    Computes TF-IDF vectors for a list of sentences.
-    Returns a list of dicts {token: score}.
-    """
-    # 1. Tokenize all sentences
     sentence_tokens = [tokenize(s) for s in sentences]
     n_docs = len(sentences)
     if n_docs == 0:
         return []
 
-    # 2. Compute Document Frequency (DF)
     doc_freq = Counter()
     for tokens in sentence_tokens:
         unique_tokens = set(tokens)
         for t in unique_tokens:
             doc_freq[t] += 1
 
-    # 3. Compute TF-IDF
     vectors = []
     for tokens in sentence_tokens:
         term_freq = Counter(tokens)
@@ -112,6 +96,15 @@ def summarize_text(text, max_sentences=5):
     sentences = split_sentences(text)
     # Filter out very short boilerplate
     sentences = [s for s in sentences if len(s.split()) > 3]
+
+    # Deduplicate sentences while preserving order
+    seen = set()
+    unique_sentences = []
+    for s in sentences:
+        if s not in seen:
+            unique_sentences.append(s)
+            seen.add(s)
+    sentences = unique_sentences
 
     if len(sentences) <= max_sentences:
         return sentences
