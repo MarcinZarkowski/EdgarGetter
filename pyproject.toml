@@ -5,6 +5,13 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "boto3>=1.42.25",
+    "edgartools>=5.8.3",
+    "networkx>=3.6.1",
+    "pandas>=2.3.3",
+    "pillow>=12.1.0",
     "psycopg>=3.3.2",
+    "python-dotenv>=1.2.1",
+    "requests>=2.32.5",
     "sqlalchemy>=2.0.45",
 ]

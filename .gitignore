@@ -10,3 +10,11 @@ wheels/
 .venv
 .env
 
+# Infra
+infra/cdk.out
+infra/.venv
+infra/.DS_Store
+
+# IDE
+.idea/
+.vscode/

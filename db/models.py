@@ -1,34 +1,37 @@
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, create_engine
+from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, create_engine, LargeBinary, Index, Boolean, UniqueConstraint
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.dialects.postgresql import JSON, ARRAY
 
 Base = declarative_base()
 
+
+
 class Ticker(Base):
     __tablename__ = "ticker"
     id = Column(Integer, primary_key=True, autoincrement=True)
-    ticker = Column(String, unique=True, nullable=False, index=True)
-    cik = Column(String, unique=True, nullable=False, index=True)
+    ticker = Column(String, unique =True,  nullable=False, index=True)
+    cik = Column(String, nullable = False, index=True)
 
-    icon = Column(String, nullable=True)
+    icon = Column(LargeBinary, nullable = True)
     display_name = Column(String, nullable=True)
     industry = Column(String, nullable=True)
 
     last_updated = Column(DateTime(timezone=True), nullable=True)
 
-    recommendation_trends = Column(ARRAY(JSON), nullable=True)
-    earnings_surprises = Column(ARRAY(JSON), nullable=True)
-    insider_sentiment = Column(ARRAY(JSON), nullable=True)
+    recommendation_trends = Column(ARRAY(JSON), nullable = True)
+    earnings_surprises = Column(ARRAY(JSON), nullable = True)
+    insider_sentiment = Column(ARRAY(JSON), nullable = True)
 
-    last_updated_news = Column(DateTime(timezone=True), nullable=True)
+    last_updated_news = Column(DateTime(timezone=True), nullable = True)
 
-    balance_sheet = Column(JSON, nullable=True)
-    income_statement = Column(JSON, nullable=True)
-    cash_flow = Column(JSON, nullable=True)
+    balance_sheet = Column(JSON, nullable = True)
+    income_statement = Column(JSON, nullable = True)
+    cash_flow = Column(JSON, nullable = True)
 
+    # Many-to-many relationship with Article
     # articles = relationship(
     #     "Article",
-    #     # secondary=ticker_article,
+    #     secondary=ticker_article,
     #     back_populates="tickers",
     #     lazy="selectin"
     # )
@@ -37,12 +40,12 @@ class Ticker(Base):
 
     insider_trades = relationship("InsiderTrade", back_populates="ticker")
 
+
     def __json__(self):
         return {
             "id": self.id,
             "ticker": self.ticker,
             "cik": self.cik,
-            "icon": self.icon,
             "display_name": self.display_name,
             "industry": self.industry,
 
@@ -51,12 +54,24 @@ class Ticker(Base):
             "earnings_surprises": self.earnings_surprises,
             "insider_sentiment": self.insider_sentiment,
             "last_updated_news": self.last_updated_news,
-            
-            # "articles": [
-            #     article.__json__()
-            # for article in self.articles
-            # ]
+
+            "articles": [
+                article.__json__()
+            for article in self.articles
+            ],
+
+            "insider_trades": [
+                trade.__json__()
+            for trade in self.insider_trades
+            ],
+
+            "company_events": [
+                event.__json__()
+            for event in self.company_events
+            ],
+
         }
+
 
 
 class CompanyEvent(Base):
@@ -81,8 +96,10 @@ class CompanyEvent(Base):
 
 class InsiderTrade(Base):
     __tablename__ = "insider_trade"
+    __table_args__ = (UniqueConstraint('date', 'cik', name='uix_date_cik'),)
     id = Column(Integer, primary_key=True, autoincrement=True)
 
+    under_plan = Column(Boolean, nullable=True)
     issuer = Column(String, nullable=True)
     insider = Column(String, nullable=True)
     position = Column(String, nullable=True)
@@ -113,5 +130,6 @@ class InsiderTrade(Base):
             "shares": self.shares,
             "price": self.price,
             "value": self.value,
-            "remaining_shares": self.remaining_shares
+            "remaining_shares": self.remaining_shares,
+            "under_plan": self.under_plan
         }
