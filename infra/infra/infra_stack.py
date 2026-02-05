@@ -22,16 +22,22 @@ class EdgarBatchStack(Stack):
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
 
-        # 1. VPC
-        vpc = ec2.Vpc(self, "EdgarBatchVpc", max_azs=2)
-
-        # 2. Create ECR Repository
-        # The user requested a repository with a fixed name to push images to manually
-        repo = ecr.Repository(self, "EdgarBatchRepo",
-            repository_name="edgar-batch-repo",
-            removal_policy=RemovalPolicy.DESTROY,
-            image_tag_mutability=ecr.TagMutability.MUTABLE
+        # 1. VPC - Using public subnets only (no NAT gateway or VPC endpoints)
+        # Batch jobs will access AWS services via public IPs (assign_public_ip=True)
+        vpc = ec2.Vpc(self, "EdgarBatchVpc", 
+            max_azs=2,
+            nat_gateways=0,  # No NAT gateway needed (saves ~$32/month)
+            subnet_configuration=[
+                ec2.SubnetConfiguration(
+                    name="Public",
+                    subnet_type=ec2.SubnetType.PUBLIC,
+                    cidr_mask=24
+                )
+            ]
         )
+
+        # 2. ECR Repository - Import the existing repository
+        repo = ecr.Repository.from_repository_name(self, "EdgarBatchRepo", "edgar-batch-repo")
 
         # 3. Import the existing secret containing sensitive values
         # The user has already created this secret in AWS Secrets Manager
@@ -39,9 +45,10 @@ class EdgarBatchStack(Stack):
 
         # 4. Batch Infrastructure
         
-        # Compute Environment (Fargate)
+        # Compute Environment (Fargate) - Using public subnets
         compute_env = batch.FargateComputeEnvironment(self, "EdgarComputeEnv",
             vpc=vpc,
+            vpc_subnets=ec2.SubnetSelection(subnet_type=ec2.SubnetType.PUBLIC),
             maxv_cpus=256,
         )
 
@@ -82,6 +89,7 @@ class EdgarBatchStack(Stack):
                 image=ecs.ContainerImage.from_ecr_repository(repo, "latest"),
                 cpu=0.5, # 0.5 vCPU
                 memory=Size.mebibytes(2048),
+                assign_public_ip=True, # Required for internet access in public subnets (Matches DataCollector)
                 execution_role=execution_role,
                 job_role=job_role,
                 environment={
